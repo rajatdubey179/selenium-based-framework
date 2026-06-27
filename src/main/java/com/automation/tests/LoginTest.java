@@ -110,7 +110,6 @@ public class LoginTest extends BaseTest {
 
     /**
      * Verifies that submitting an empty form shows a validation error.
-     *
      * This tests the boundary: what happens with no input at all.
      */
     @Test(description = "Empty credentials should show a validation error", priority = 4)
