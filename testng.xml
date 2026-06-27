@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+
+<!--
+    testng.xml — TestNG suite configuration file.
+
+    WHY this file?
+      Instead of running every @Test class discovered on the classpath, this file
+      lets you define exactly which classes and groups to run, in what order,
+      and with how many parallel threads.
+
+    KEY ATTRIBUTES:
+      name        — display name shown in test reports
+      verbose     — console log level: 0=silent, 2=normal, 10=very detailed
+      parallel    — "methods"|"classes"|"tests"|"none"; skip for sequential
+      thread-count — only applies when parallel is set
+-->
+<suite name="Selenium Automation Suite" verbose="2">
+
+    <test name="Login Tests">
+        <classes>
+            <!-- Add more <class> entries here as you create new test classes -->
+            <class name="com.automation.tests.LoginTest"/>
+        </classes>
+    </test>
+
+</suite>
