@@ -6,124 +6,146 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
- * LoginTest — verifies the login functionality of the SauceDemo application.
+ * LoginTest — verifies the login functionality of automationexercise.com
  *
- * KEY CONCEPTS demonstrated here:
- *   1. Extending BaseTest — inherits setUp() / tearDown() automatically
- *   2. Page Object Model — tests talk to LoginPage, never to raw Selenium APIs
- *   3. TestNG @Test — annotations replace JUnit's @Test; same idea, richer options
- *   4. Assert — TestNG assertions; test fails immediately on a false condition
+ * The login page has two forms:
+ *   - Left:  "Login to your account"  → email + password
+ *   - Right: "New User Signup!"       → name + email
  *
- * VALID CREDENTIALS for https://www.saucedemo.com:
- *   username : standard_user
- *   password : secret_sauce
+ * VALID TEST CREDENTIALS (pre-registered on the site):
+ *   Create a free account at https://automationexercise.com/login → Signup
+ *   Then use those credentials below, or use:
+ *     email    : test@test.com
+ *     password : test@123
  *
- *   Other built-in users:
- *     locked_out_user  — always returns "locked out" error (used in negative test)
- *     problem_user     — logs in but some UI features are broken
+ * TESTNG ANNOTATIONS USED:
+ *   @Test(priority)     — lower number runs first
+ *   @Test(description)  — shown in reports
+ *   @Test(groups)       — tag tests as smoke / regression for selective runs
  */
 public class LoginTest extends BaseTest {
 
+    // Credentials — in a real project these come from DataProvider or ExcelReader
+    private static final String VALID_EMAIL    = "rajatdubey179@gmail.com ";
+    private static final String VALID_PASSWORD = "Rajat@123";
+
     // -----------------------------------------------------------------------
-    // POSITIVE TEST — happy path
+    // POSITIVE TESTS
     // -----------------------------------------------------------------------
 
     /**
-     * Verifies that a valid user can log in and land on the products page.
+     * TC_001 — Valid credentials should log in and show "Logged in as <name>" in navbar.
      *
-     * @Test attributes:
-     *   description — shown in TestNG reports; keep it human-readable
-     *   priority    — lower number runs first when multiple tests exist
+     * Verification strategy:
+     *   After login the URL stays at / but the navbar changes to show the username.
+     *   isLoggedIn() waits for that <b> element to appear.
      */
-    @Test(description = "Valid credentials should log in successfully", priority = 1)
+    @Test(description = "Valid credentials should log in successfully",
+          priority = 1, groups = {"smoke", "regression"})
     public void testSuccessfulLogin() {
-        // 1. Arrange — create the page object (driver comes from BaseTest.setUp)
         LoginPage loginPage = new LoginPage(driver);
+        loginPage.navigateTo();
 
-        // 2. Act — perform the login using the composite method
-        loginPage.login("standard_user", "secret_sauce");
+        loginPage.login(VALID_EMAIL, VALID_PASSWORD);
 
-        // 3. Assert — verify the expected outcome
-        //    Assert.assertTrue(condition, message) — message appears in the report on failure
-        Assert.assertTrue(loginPage.isLoginSuccessful(),
-                "Expected to be on the inventory page after successful login.");
+        Assert.assertTrue(loginPage.isLoggedIn(),
+                "Navbar should show 'Logged in as <user>' after valid login.");
 
-        System.out.println("[LoginTest] testSuccessfulLogin PASSED.");
+        Assert.assertTrue(loginPage.isLogoutVisible(),
+                "Logout link should be visible in the navbar after login.");
+
+        System.out.println("[LoginTest] Logged in as: " + loginPage.getLoggedInUsername());
     }
 
     // -----------------------------------------------------------------------
-    // NEGATIVE TEST — wrong password
+    // NEGATIVE TESTS
     // -----------------------------------------------------------------------
 
     /**
-     * Verifies that wrong credentials display an error message.
+     * TC_002 — Wrong password should show the error message.
      *
-     * WHY negative tests matter in interviews:
-     *   Interviewers expect you to test both valid AND invalid scenarios.
-     *   Error messages, boundary values, and locked accounts are common examples.
+     * The site shows: "Your email or password is incorrect!"
      */
-    @Test(description = "Invalid password should show an error message", priority = 2)
-    public void testLoginWithInvalidPassword() {
+    @Test(description = "Wrong password should display an error message",
+          priority = 2, groups = {"regression"})
+    public void testLoginWithWrongPassword() {
         LoginPage loginPage = new LoginPage(driver);
+        loginPage.navigateTo();
 
-        loginPage.login("standard_user", "wrong_password");
+        loginPage.login(VALID_EMAIL, "wrongpassword123");
 
-        // The login should NOT have succeeded
-        Assert.assertFalse(loginPage.isLoginSuccessful(),
-                "Login should fail with an incorrect password.");
+        Assert.assertFalse(loginPage.isLoggedIn(),
+                "Login should NOT succeed with an incorrect password.");
 
-        // The error message should be visible and contain meaningful text
-        String error = loginPage.getErrorMessage();
+        String error = loginPage.getLoginErrorMessage();
         Assert.assertFalse(error.isEmpty(),
-                "An error message should be displayed after failed login.");
+                "An error message should be displayed for wrong credentials.");
 
-        System.out.println("[LoginTest] testLoginWithInvalidPassword PASSED. Error: " + error);
+        Assert.assertTrue(error.contains("incorrect"),
+                "Error should say 'incorrect'. Actual: " + error);
+
+        System.out.println("[LoginTest] Error shown: " + error);
     }
 
-    // -----------------------------------------------------------------------
-    // NEGATIVE TEST — locked-out user
-    // -----------------------------------------------------------------------
-
     /**
-     * Verifies the error message for a locked-out account.
+     * TC_003 — Non-existent email should show the same incorrect-credentials error.
      *
-     * Assert.assertTrue + String.contains() is a common pattern to check
-     * that a message CONTAINS expected text without asserting the full string.
+     * WHY test this separately from wrong password?
+     *   Some apps reveal whether an email exists (a security issue).
+     *   Both cases should return the SAME generic error message.
      */
-    @Test(description = "Locked-out user should see a specific error message", priority = 3)
-    public void testLockedOutUserLogin() {
+    @Test(description = "Non-existent email should display an error message",
+          priority = 3, groups = {"regression"})
+    public void testLoginWithNonExistentEmail() {
         LoginPage loginPage = new LoginPage(driver);
+        loginPage.navigateTo();
 
-        loginPage.login("locked_out_user", "secret_sauce");
+        loginPage.login("nouser_xyz@fake.com", "anypassword");
 
-        String error = loginPage.getErrorMessage();
+        Assert.assertFalse(loginPage.isLoggedIn(),
+                "Login should NOT succeed with a non-existent email.");
 
-        Assert.assertTrue(error.contains("locked out"),
-                "Expected 'locked out' in error message but got: " + error);
-
-        System.out.println("[LoginTest] testLockedOutUserLogin PASSED. Error: " + error);
+        String error = loginPage.getLoginErrorMessage();
+        Assert.assertFalse(error.isEmpty(),
+                "An error message should be shown for a non-existent email.");
     }
 
-    // -----------------------------------------------------------------------
-    // NEGATIVE TEST — empty credentials
-    // -----------------------------------------------------------------------
-
     /**
-     * Verifies that submitting an empty form shows a validation error.
-     * This tests the boundary: what happens with no input at all.
+     * TC_004 — Empty credentials should show a validation error.
      */
-    @Test(description = "Empty credentials should show a validation error", priority = 4)
+    @Test(description = "Empty credentials should show a validation error",
+          priority = 4, groups = {"regression"})
     public void testLoginWithEmptyCredentials() {
         LoginPage loginPage = new LoginPage(driver);
+        loginPage.navigateTo();
 
-        // Login with empty strings — no input at all
         loginPage.login("", "");
 
-        String error = loginPage.getErrorMessage();
+        Assert.assertFalse(loginPage.isLoggedIn(),
+                "Login should NOT succeed with empty credentials.");
+    }
 
+    /**
+     * TC_005 — Already-registered email in signup form should show duplicate error.
+     *
+     * The site shows: "Email Address already exist!"
+     * This tests the SIGNUP form on the same login page.
+     */
+    @Test(description = "Signup with existing email should show duplicate error",
+          priority = 5, groups = {"regression"})
+    public void testSignupWithExistingEmail() {
+        LoginPage loginPage = new LoginPage(driver);
+        loginPage.navigateTo();
+
+        loginPage.initiateSignup("Test User", VALID_EMAIL);
+
+        String error = loginPage.getSignupErrorMessage();
         Assert.assertFalse(error.isEmpty(),
-                "A validation error should appear when credentials are empty.");
+                "An error should appear when signing up with an already registered email.");
 
-        System.out.println("[LoginTest] testLoginWithEmptyCredentials PASSED. Error: " + error);
+        Assert.assertTrue(error.contains("Email Address already exist"),
+                "Error should mention 'Email Address already exist'. Actual: " + error);
+
+        System.out.println("[LoginTest] Signup duplicate error: " + error);
     }
 }

@@ -2,25 +2,42 @@
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 
 <!--
-    testng.xml — TestNG suite configuration file.
+    testng.xml — TestNG suite configuration for automationexercise.com
 
-    WHY this file?
-      Instead of running every @Test class discovered on the classpath, this file
-      lets you define exactly which classes and groups to run, in what order,
-      and with how many parallel threads.
+    HOW TO RUN:
+      All tests  : mvn test
+      Smoke only : mvn test -Dgroups="smoke"
+      Regression : mvn test -Dgroups="regression"
 
     KEY ATTRIBUTES:
-      name        — display name shown in test reports
-      verbose     — console log level: 0=silent, 2=normal, 10=very detailed
-      parallel    — "methods"|"classes"|"tests"|"none"; skip for sequential
-      thread-count — only applies when parallel is set
+      verbose      — console log level: 0=silent, 2=normal, 10=very detailed
+      parallel     — "methods"|"classes"|"tests"|"none"
+      thread-count — number of threads (only applies when parallel is set)
 -->
-<suite name="Selenium Automation Suite" verbose="2">
+<suite name="AutomationExercise Test Suite" verbose="2">
 
-    <test name="Login Tests">
+    <!-- =====================================================================
+         SMOKE SUITE — quick sanity check, runs only @Test(groups="smoke")
+    ====================================================================== -->
+    <test name="Smoke Tests">
+        <groups>
+            <run>
+                <include name="smoke"/>
+            </run>
+        </groups>
         <classes>
-            <!-- Add more <class> entries here as you create new test classes -->
             <class name="com.automation.tests.LoginTest"/>
+            <class name="com.automation.tests.ProductsTest"/>
+        </classes>
+    </test>
+
+    <!-- =====================================================================
+         REGRESSION SUITE — full suite, runs all @Test methods
+    ====================================================================== -->
+    <test name="Regression Tests">
+        <classes>
+            <class name="com.automation.tests.LoginTest"/>
+            <class name="com.automation.tests.ProductsTest"/>
         </classes>
     </test>
 

@@ -9,17 +9,22 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
 
 /**
- * LoginPage — Page Object Model (POM) for the login screen.
+ * LoginPage — Page Object for https://automationexercise.com/login
  *
- * WHY Page Object Model?
- *   Without POM, every test that clicks the login button duplicates the locator.
- *   When the button's ID changes, you update dozens of tests.
- *   With POM, you update ONE line here and all tests heal automatically.
+ * The page has TWO forms side by side:
+ *   Left  → "Login to your account"  (email + password + Login button)
+ *   Right → "New User Signup!"        (name + email + Signup button)
  *
- * RULE: A Page Object contains locators and actions — NEVER assertions.
- *   Assertions belong in the test class so failures point to the right test.
+ * LOCATOR STRATEGY:
+ *   The site uses data-qa attributes on form elements — the most stable
+ *   selector type because it is decoupled from CSS styling and layout.
+ *   We use [data-qa='value'] CSS attribute selectors throughout.
  *
- * TARGET SITE: https://www.saucedemo.com (free public practice site)
+ * CSS SELECTOR reference used here:
+ *   [data-qa='value']    → attribute selector — best for test automation
+ *   .classname           → class selector
+ *   a[href='/logout']    → anchor with specific href
+ *   li a b               → <b> inside <a> inside <li> (nav username display)
  */
 public class LoginPage {
 
@@ -27,135 +32,164 @@ public class LoginPage {
     private final WebDriverWait wait;
 
     // -------------------------------------------------------------------------
-    // Locators — By objects stored as constants
-    //
-    // CSS SELECTOR cheat-sheet used below:
-    //   #id              → element with that id
-    //   .class           → element with that class
-    //   tag              → element by tag name
-    //   [attr='value']   → element with that attribute value
-    //   tag[attr]        → tag that has the attribute (regardless of value)
-    //
-    // PREFER CSS over XPath — CSS is faster and easier to read.
-    // Use XPath only when CSS cannot express the relationship (e.g. parent lookup,
-    // text-based matching without an id/class, or deeply nested shadow DOM).
+    // Locators — LOGIN form (left panel)
     // -------------------------------------------------------------------------
 
-    // CSS: select <input> element whose 'id' attribute equals 'user-name'
-    private final By usernameField = By.cssSelector("#user-name");
+    // data-qa attributes are purpose-built for automation — prefer over id/class
+    private final By loginEmailField    = By.cssSelector("[data-qa='login-email']");
+    private final By loginPasswordField = By.cssSelector("[data-qa='login-password']");
+    private final By loginButton        = By.cssSelector("[data-qa='login-button']");
 
-    // CSS: attribute selector — works even if the element has no id
-    private final By passwordField = By.cssSelector("input[type='password']");
+    // -------------------------------------------------------------------------
+    // Locators — SIGNUP form (right panel)
+    // -------------------------------------------------------------------------
 
-    // CSS: <input> with id='login-button'
-    private final By loginButton = By.cssSelector("#login-button");
+    private final By signupNameField  = By.cssSelector("[data-qa='signup-name']");
+    private final By signupEmailField = By.cssSelector("[data-qa='signup-email']");
+    private final By signupButton     = By.cssSelector("[data-qa='signup-button']");
 
-    // XPath example: text() matching — CSS cannot select by visible text alone
-    // This finds any element whose exact text is "Epic sadface..."
-    private final By errorMessage = By.xpath(
-            "//*[contains(@class,'error-message-container')]//h3");
+    // -------------------------------------------------------------------------
+    // Locators — post-action verification
+    // -------------------------------------------------------------------------
 
-    // CSS: the inventory page container — present only after a successful login
-    private final By inventoryContainer = By.cssSelector(".inventory_container");
+    // XPath: contains() on text — CSS cannot match visible text content directly.
+    // Used here because the error <p> has no id or data-qa attribute.
+    private final By loginErrorMessage = By.xpath(
+            "//p[contains(text(),'Your email or password is incorrect')]");
+
+    // XPath: same reason — no stable attribute on this error element
+    private final By signupErrorMessage = By.xpath(
+            "//p[contains(text(),'Email Address already exist')]");
+
+    // CSS: navbar shows "Logged in as <b>username</b>" after successful login
+    private final By loggedInUserText = By.cssSelector("li a b");
+
+    // CSS: logout link is only present in the navbar when a user is logged in
+    private final By logoutLink = By.cssSelector("a[href='/logout']");
 
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
 
-    /**
-     * Every Page Object receives the WebDriver from the test/BaseTest.
-     * The page never creates its own driver — this keeps control in one place.
-     *
-     * @param driver the active WebDriver session
-     */
     public LoginPage(WebDriver driver) {
         this.driver = driver;
-        // WebDriverWait replaces Thread.sleep() — it polls until a condition is true
-        // or the timeout expires, making tests faster and less flaky.
+        // WebDriverWait polls the DOM up to 10s before throwing TimeoutException.
+        // Always prefer this over Thread.sleep() — it makes tests faster and stable.
         this.wait = new WebDriverWait(driver, Duration.ofSeconds(10));
     }
 
     // -------------------------------------------------------------------------
-    // Actions — each method represents ONE user interaction
+    // Navigation
     // -------------------------------------------------------------------------
 
-    /**
-     * Types text into the username input.
-     * wait.until ensures the field is clickable before we interact with it.
-     */
-    public void enterUsername(String username) {
-        WebElement field = wait.until(ExpectedConditions.elementToBeClickable(usernameField));
-        field.clear();          // clear any pre-filled value first
-        field.sendKeys(username);
+    /** Navigates directly to the login page URL. */
+    public void navigateTo() {
+        driver.get("https://automationexercise.com/login");
     }
 
-    /**
-     * Types text into the password input.
-     */
-    public void enterPassword(String password) {
-        WebElement field = wait.until(ExpectedConditions.elementToBeClickable(passwordField));
+    // -------------------------------------------------------------------------
+    // LOGIN form actions
+    // -------------------------------------------------------------------------
+
+    public void enterLoginEmail(String email) {
+        WebElement field = wait.until(ExpectedConditions.visibilityOfElementLocated(loginEmailField));
+        field.clear();
+        field.sendKeys(email);
+    }
+
+    public void enterLoginPassword(String password) {
+        WebElement field = wait.until(ExpectedConditions.visibilityOfElementLocated(loginPasswordField));
         field.clear();
         field.sendKeys(password);
     }
 
-    /**
-     * Clicks the login button.
-     */
     public void clickLoginButton() {
         wait.until(ExpectedConditions.elementToBeClickable(loginButton)).click();
     }
 
-    // -------------------------------------------------------------------------
-    // Composite action — combines individual steps into one reusable method
-    // -------------------------------------------------------------------------
-
-    /**
-     * Performs a full login in one call.
-     * Tests use this instead of calling the three individual steps every time.
-     *
-     * @param username credential to enter
-     * @param password credential to enter
-     */
-    public void login(String username, String password) {
-        enterUsername(username);
-        enterPassword(password);
+    /** Composite login — fills email + password then clicks Login. */
+    public void login(String email, String password) {
+        enterLoginEmail(email);
+        enterLoginPassword(password);
         clickLoginButton();
     }
 
     // -------------------------------------------------------------------------
-    // State queries — boolean / String methods tests use in assertions
+    // SIGNUP form actions
     // -------------------------------------------------------------------------
 
-    /**
-     * Returns true if the product inventory page loaded after login.
-     * ExpectedConditions.urlContains is a common way to verify navigation.
-     */
-    public boolean isLoginSuccessful() {
+    public void enterSignupName(String name) {
+        WebElement field = wait.until(ExpectedConditions.visibilityOfElementLocated(signupNameField));
+        field.clear();
+        field.sendKeys(name);
+    }
+
+    public void enterSignupEmail(String email) {
+        WebElement field = wait.until(ExpectedConditions.visibilityOfElementLocated(signupEmailField));
+        field.clear();
+        field.sendKeys(email);
+    }
+
+    public void clickSignupButton() {
+        wait.until(ExpectedConditions.elementToBeClickable(signupButton)).click();
+    }
+
+    /** Composite signup — fills name + email then clicks Signup. */
+    public void initiateSignup(String name, String email) {
+        enterSignupName(name);
+        enterSignupEmail(email);
+        clickSignupButton();
+    }
+
+    // -------------------------------------------------------------------------
+    // State queries — used by tests for assertions
+    // -------------------------------------------------------------------------
+
+    /** Returns true when the navbar shows "Logged in as <user>". */
+    public boolean isLoggedIn() {
         try {
-            // Wait up to 5 seconds for the inventory container to appear
-            wait.until(ExpectedConditions.visibilityOfElementLocated(inventoryContainer));
+            wait.until(ExpectedConditions.visibilityOfElementLocated(loggedInUserText));
             return true;
         } catch (Exception e) {
             return false;
         }
     }
 
-    /**
-     * Returns the error message text shown on a failed login attempt.
-     * Returns an empty string if no error message is present.
-     */
-    public String getErrorMessage() {
+    /** Returns the username text shown in the navbar after login. */
+    public String getLoggedInUsername() {
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(loggedInUserText)).getText();
+    }
+
+    /** Returns the login error message text, or empty string if not shown. */
+    public String getLoginErrorMessage() {
         try {
             return wait.until(
-                    ExpectedConditions.visibilityOfElementLocated(errorMessage)).getText();
+                    ExpectedConditions.visibilityOfElementLocated(loginErrorMessage)).getText();
         } catch (Exception e) {
             return "";
         }
     }
 
-    /**
-     * Returns the current page title — useful for a quick sanity assertion.
-     */
+    /** Returns the signup error message text, or empty string if not shown. */
+    public String getSignupErrorMessage() {
+        try {
+            return wait.until(
+                    ExpectedConditions.visibilityOfElementLocated(signupErrorMessage)).getText();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** Returns true if the logout link is visible — secondary login confirmation. */
+    public boolean isLogoutVisible() {
+        try {
+            return driver.findElement(logoutLink).isDisplayed();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Returns the current page title. */
     public String getPageTitle() {
         return driver.getTitle();
     }
