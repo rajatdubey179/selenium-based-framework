@@ -28,6 +28,7 @@
         <classes>
             <class name="com.automation.tests.LoginTest"/>
             <class name="com.automation.tests.ProductsTest"/>
+            <class name="com.automation.tests.CartTest"/>
         </classes>
     </test>
 
@@ -38,6 +39,7 @@
         <classes>
             <class name="com.automation.tests.LoginTest"/>
             <class name="com.automation.tests.ProductsTest"/>
+            <class name="com.automation.tests.CartTest"/>
         </classes>
     </test>
 
